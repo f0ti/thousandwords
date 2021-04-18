@@ -14,6 +14,7 @@ from chainer import serializers
 import datasets
 from model import ImageCaptionModel
 
+# python predict.py --img cat.jpg --model result/model_20000 --rnn nsteplstm --max-caption-length 30 --gpu 0 --dataset-name mscoco --out prediction.json
 
 def main():
     parser = argparse.ArgumentParser()
@@ -61,45 +62,41 @@ def main():
 
     results = dict()
 
-    for i in range(0, len(img_paths), args.batch_size):
-        img_paths_sub = img_paths[i:i + args.batch_size]
-        imgs = []
-        for img_path in img_paths_sub:
-            img = Image.open(img_path)
-            img = model.prepare(img)
-            imgs.append(img)
-        imgs = np.asarray(imgs)
+    imgs = []
+    img = Image.open(img_path)
+    img = model.prepare(img)
+    imgs.append(img)
+    imgs = np.asarray(imgs)
 
-        if args.gpu >= 0:
-            chainer.backends.cuda.get_device_from_id(args.gpu).use()
-            model.to_gpu()
-            imgs = chainer.backends.cuda.to_gpu(imgs)
+    if args.gpu >= 0:
+        chainer.backends.cuda.get_device_from_id(args.gpu).use()
+        model.to_gpu()
+        imgs = chainer.backends.cuda.to_gpu(imgs)
 
-        bos = vocab['<bos>']
-        eos = vocab['<eos>']
-        with chainer.using_config('train', False), \
-                chainer.no_backprop_mode():
-            captions = model.predict(
-                imgs, bos=bos, eos=eos, max_caption_length=args.max_caption_length)
-        captions = chainer.backends.cuda.to_cpu(captions)
+    bos = vocab['<bos>']
+    eos = vocab['<eos>']
+    
+    with chainer.using_config('train', False), \
+            chainer.no_backprop_mode():
+        captions = model.predict(
+            imgs, bos=bos, eos=eos, max_caption_length=args.max_caption_length)
+    captions = chainer.backends.cuda.to_cpu(captions)
 
-        # Print the predicted captions
-        file_names = [os.path.basename(path) for path in img_paths_sub]
-        max_length = max(len(name) for name in file_names)
-        for file_name, caption in zip(file_names, captions):
-            caption = ' '.join(ivocab[token] for token in caption)
-            caption = caption.replace('<bos>', '')
-            end = caption.find('<eos>')
-            caption = caption[:end].strip()
-            # caption = caption.replace('<bos>', '').replace('<eos>', '').strip()
-            results[file_name] = caption
-            print(('{0:' + str(max_length) + '} {1}').format(file_name, caption))
+    # Print the predicted captions
+    file_names = [os.path.basename(path) for path in img_paths]
+    max_length = max(len(name) for name in file_names)
+    for file_name, caption in zip(file_names, captions):
+        caption = ' '.join(ivocab[token] for token in caption)
+        caption = caption.replace('<bos>', '')
+        end = caption.find('<eos>')
+        caption = caption[:end].strip()
+        # caption = caption.replace('<bos>', '').replace('<eos>', '').strip()
+        results[file_name] = caption
+        print(('{0:' + str(max_length) + '} {1}').format(file_name, caption))
 
     # Save captions
     with open(args.out, "w") as f:
         json.dump(results, f, indent=4)
     
-        
-
 if __name__ == '__main__':
     main()
