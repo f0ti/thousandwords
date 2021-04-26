@@ -3,9 +3,10 @@
 import os
 import json
 import openai
-import logging
 
 from flask import Flask, request, jsonify, render_template, redirect, url_for
+from caption_generator import infer
+
 app = Flask(__name__, template_folder='.')
 
 @app.route('/')
@@ -21,10 +22,11 @@ def result():
 
 # send request to api
 @app.route('/generate', methods=['POST', 'GET'])
-def generate():
-    
-    if request.method == "GET":
-        return render_template('generate.html')
+def generate(): 
+
+    if request.method == "POST":
+        pass    
+
     else:
         sentence = request.form['utter']
 
@@ -51,6 +53,9 @@ def generate():
 
         return redirect(url_for('result', story=story))
 
+    return render_template('generate.html')
+
 if __name__ == '__main__':
     # Threaded option to enable multiple instances for multiple user access support
     app.run(debug=False, threaded=True, port=5000)
+
